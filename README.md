@@ -1,6 +1,12 @@
 # lazyTodo
 
-Phase 2 adds a minimal Node.js backend that implements the approved task API contract.
+`lazyTodo` is a minimal task manager built around a simple authenticated task loop:
+check session, list tasks, create, toggle, and delete.
+
+Phase 2 currently includes:
+
+- a minimal Node.js backend that implements the approved task API contract
+- a React frontend that consumes that contract from the browser
 
 ## Backend
 
@@ -18,7 +24,7 @@ The current implementation uses:
 - an in-memory task repository
 - a seeded session cookie for local development
 
-## Run
+### Run backend
 
 Requirements:
 
@@ -49,10 +55,40 @@ curl --cookie "sid=sid_demo_user" \
   http://localhost:3000/api/v1/tasks
 ```
 
-## Test
-
 Run the backend tests with:
 
 ```bash
 npm test
+```
+
+## Frontend
+
+The Phase 2 frontend lives in `frontend/` and expects the Phase 1 API contract under `/api/v1`.
+
+### Run frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Optional environment variables:
+
+- `VITE_API_BASE_URL`: absolute origin for the backend API, for example `http://localhost:3000`
+
+### Frontend quality checks
+
+```bash
+cd frontend
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+Repository-level gate:
+
+```bash
+bash ./.ao-tools/quality-gate.sh --skip-install
 ```
