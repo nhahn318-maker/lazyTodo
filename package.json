@@ -5,7 +5,8 @@
   "description": "Backend service for lazyTodo",
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "quality:gate": "npm test"
   },
   "engines": {
     "node": ">=20"

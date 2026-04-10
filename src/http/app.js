@@ -31,6 +31,11 @@ function createApp(options = {}) {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
     try {
+      if (req.method === 'GET' && url.pathname === '/health') {
+        sendJson(res, 200, { status: 'ok' }, requestId);
+        return;
+      }
+
       if (req.method === 'GET' && url.pathname === '/api/v1/session') {
         const session = getSession(req, authStore);
         sendJson(res, 200, {
