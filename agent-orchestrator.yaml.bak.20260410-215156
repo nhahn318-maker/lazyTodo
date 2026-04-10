@@ -1,0 +1,19 @@
+port: 3000
+defaults:
+  runtime: tmux
+  agent: codex
+  workspace: worktree
+  notifiers:
+    - desktop
+projects:
+  lazytodo:
+    name: lazytodo
+    sessionPrefix: laz
+    repo: nhahn318-maker/lazyTodo
+    path: /mnt/d/VibeCoding/lazyTodo
+    defaultBranch: main
+    agentRules: |-
+      Always run tests before pushing.
+      Use conventional commits (feat:, fix:, chore:, docs:, refactor:, test:).
+      Link issue numbers in commit messages.
+      Write clear commit messages that explain WHY, not just WHAT.

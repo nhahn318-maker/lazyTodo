@@ -1,0 +1,131 @@
+name: Quality Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - 'feat/**'
+
+jobs:
+  pr-dod:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip DoD check for non-PR events
+        if: github.event_name != 'pull_request'
+        run: echo "DoD PR-body validation applies only to pull_request events."
+      - name: Validate PR template sections
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          required_sections=(
+            "## Definition of Done Checklist"
+            "## Acceptance Criteria Mapping"
+            "## Test Evidence"
+            "## UI Evidence (required for UI changes)"
+            "## Risk and Rollback"
+          )
+
+          missing=0
+          for section in "${required_sections[@]}"; do
+            if ! grep -Fq "$section" <<< "$PR_BODY"; then
+              echo "Missing section in PR body: $section"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            echo "PR does not follow required Definition of Done template."
+            exit 1
+          fi
+
+          echo "PR template sections are present."
+
+  quality-core:
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('.ao-tools/quality-gate.sh') != '' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Run local quality gate script
+        run: |
+          chmod +x ./.ao-tools/quality-gate.sh
+          ./.ao-tools/quality-gate.sh
+
+  e2e:
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('frontend/package.json') != '' && hashFiles('frontend/playwright.config.*') != '' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Install backend deps (if exists)
+        run: |
+          if [ -f backend/package.json ]; then
+            cd backend
+            npm ci
+            cd ..
+          fi
+      - name: Install frontend deps
+        run: |
+          cd frontend
+          npm ci
+      - name: Run e2e if script exists
+        run: |
+          cd frontend
+          HAS_E2E=$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.stdout.write(p.scripts&&p.scripts['e2e:ci']?'yes':'no')")
+          if [ "$HAS_E2E" = "yes" ]; then
+            npx playwright install --with-deps chromium
+            npm run e2e:ci
+          else
+            echo "No e2e:ci script, skipping."
+          fi
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
+
+  quality-gate:
+    runs-on: ubuntu-latest
+    needs:
+      - pr-dod
+      - quality-core
+      - e2e
+    if: always()
+    steps:
+      - name: Enforce quality jobs
+        run: |
+          echo "pr-dod: ${{ needs.pr-dod.result }}"
+          echo "quality-core: ${{ needs.quality-core.result }}"
+          echo "e2e: ${{ needs.e2e.result }}"
+
+          failed=0
+          for result in "${{ needs.pr-dod.result }}" "${{ needs.quality-core.result }}" "${{ needs.e2e.result }}"; do
+            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
+              failed=1
+            fi
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            echo "Quality gate failed because one or more required jobs did not pass."
+            exit 1
+          fi
+
+          echo "Quality gate passed."

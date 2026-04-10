@@ -1,0 +1,8 @@
+# One key per line. If listed here, preflight will require it from:
+# - current shell env, or
+# - .env, backend/.env, frontend/.env
+#
+# Example:
+# DATABASE_URL
+# JWT_SECRET
+# OPENAI_API_KEY

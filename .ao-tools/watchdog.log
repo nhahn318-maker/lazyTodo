@@ -1,0 +1,12 @@
+[2026-04-10T21:46:25+07:00] watchdog started: project=lazytodo interval=15s threshold=2 autopilot=1
+[2026-04-10T21:46:25+07:00] core health check failed (1/2)
+[2026-04-10T21:46:40+07:00] core health check failed (2/2)
+[2026-04-10T21:46:42+07:00] autopilot health check failed (1/2)
+[2026-04-10T21:46:42+07:00] restarted core session ao-core-lazytodo
+[2026-04-10T21:46:57+07:00] core health check failed (1/2)
+[2026-04-10T21:46:58+07:00] autopilot health check failed (2/2)
+[2026-04-10T21:46:58+07:00] restarted autopilot session ao-autopilot-lazytodo
+[2026-04-10T21:48:01+07:00] watchdog started: project=lazytodo interval=15s threshold=2 autopilot=1
+[2026-04-10T21:51:47+07:00] autopilot health check failed (1/2)
+[2026-04-10T21:52:02+07:00] autopilot health check failed (2/2)
+[2026-04-10T21:52:02+07:00] restarted autopilot session ao-autopilot-lazytodo

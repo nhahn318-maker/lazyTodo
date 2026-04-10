@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AO Graph Dashboard</title>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    window.mermaid = mermaid;
+  </script>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, sans-serif; background: #0a1020; color: #dbe7ff; }
+    .wrap { padding: 16px; }
+    .top { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    .title { font-size: 22px; font-weight: 700; }
+    .meta { color: #9fb5da; font-size: 13px; }
+    .badge { border: 1px solid #2c3d62; border-radius: 8px; padding: 6px 10px; font-size: 12px; background: #111a31; }
+    .row { display: flex; gap: 16px; margin-top: 14px; flex-wrap: wrap; }
+    .panel { background: #0f172d; border: 1px solid #233459; border-radius: 12px; padding: 12px; }
+    .graph { flex: 1 1 900px; min-height: 420px; overflow: auto; }
+    .side { flex: 0 0 420px; max-width: 420px; }
+    .section { margin-bottom: 14px; }
+    .section h3 { margin: 0 0 8px; font-size: 14px; color: #9fc1ff; }
+    ul { margin: 0; padding-left: 16px; }
+    li { margin: 4px 0; font-size: 13px; }
+    .ok { color: #7ef0a2; }
+    .warn { color: #f7d674; }
+    .muted { color: #8ea2c5; }
+    a { color: #8cc2ff; text-decoration: none; }
+    .controls { display: flex; gap: 8px; align-items: center; }
+    button { background: #20437f; color: #e9f2ff; border: 1px solid #426db0; border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+    .timeline {
+      max-height: 380px;
+      overflow: auto;
+      border: 1px solid #233459;
+      border-radius: 8px;
+      padding: 8px;
+      background: #0a1226;
+    }
+    .events { list-style: none; padding: 0; margin: 0; }
+    .event { padding: 8px; border-bottom: 1px solid #1a2a4b; }
+    .event:last-child { border-bottom: none; }
+    .event-meta { color: #8ea2c5; font-size: 11px; margin-bottom: 4px; }
+    .event-msg { color: #e7efff; font-size: 13px; line-height: 1.35; }
+    .kv { margin: 0; padding: 0; list-style: none; }
+    .kv li { margin: 4px 0; font-size: 12px; color: #c7d8f8; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .pill {
+      display: inline-block;
+      border: 1px solid #35527f;
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: 11px;
+      margin-right: 6px;
+      color: #9fc1ff;
+      background: #11203d;
+    }
+    .stream {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #2c3d62;
+      border-radius: 8px;
+      padding: 4px 8px;
+      font-size: 12px;
+      background: #111a31;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #d1902f; }
+    .dot.ok { background: #2fb46a; }
+    .dot.err { background: #c94848; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div class="title">AO Pipeline Graph</div>
+        <div id="meta" class="meta">loading...</div>
+      </div>
+      <div class="controls">
+        <div id="stream" class="stream"><span id="streamDot" class="dot"></span><span id="streamText">stream: connecting</span></div>
+        <div id="stats" class="badge">-</div>
+        <div id="collector" class="badge">collector: -</div>
+        <button id="refreshBtn">Refresh</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="panel graph">
+        <div id="graph"></div>
+      </div>
+      <div class="panel side">
+        <div class="section">
+          <h3>Active Sessions</h3>
+          <ul id="sessions"></ul>
+        </div>
+        <div class="section">
+          <h3>Role Skill Matrix</h3>
+          <ul id="skills"></ul>
+        </div>
+        <div class="section">
+          <h3>Open PRs</h3>
+          <ul id="prs"></ul>
+        </div>
+        <div class="section">
+          <h3>Autopilot Telemetry</h3>
+          <ul id="autopilot" class="kv"></ul>
+        </div>
+        <div class="section">
+          <h3>Watchdog</h3>
+          <ul id="watchdog" class="kv"></ul>
+        </div>
+        <div class="section">
+          <h3>Live Timeline</h3>
+          <div class="timeline">
+            <ul id="events" class="events"></ul>
+          </div>
+        </div>
+        <div class="section">
+          <h3>Legend</h3>
+          <ul>
+            <li><span class="ok">Green border</span>: closed issue</li>
+            <li><span class="warn">Yellow border</span>: open issue</li>
+            <li><span class="muted">Bold node</span>: active session</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script type="module">
+  const mermaid = window.mermaid;
+  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+
+  const phaseOrder = ['phase:1-design', 'phase:2-build', 'phase:3-test', 'phase:4-review', 'phase:unclassified'];
+  const maxEvents = 500;
+  let eventStore = [];
+  let lastEventId = 0;
+  let eventSource = null;
+  let reconnectTimer = null;
+  let reconnectDelayMs = 1000;
+  let lastStreamActivityAt = 0;
+  let streamConnected = false;
+  const fallbackRoleProfiles = [
+    {
+      id: 'role:unknown',
+      name: 'unknown',
+      skills: ['general-engineering'],
+      tools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'],
+    },
+  ];
+
+  function esc(s) {
+    return String(s).replaceAll('"', "'");
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  function phaseTitle(p) {
+    return p.replace('phase:', '').replaceAll('-', ' ').toUpperCase();
+  }
+
+  function setStreamStatus(kind, text) {
+    const dot = document.getElementById('streamDot');
+    const label = document.getElementById('streamText');
+    dot.classList.remove('ok', 'err');
+    if (kind === 'ok') dot.classList.add('ok');
+    if (kind === 'err') dot.classList.add('err');
+    label.textContent = `stream: ${text}`;
+  }
+
+  function scheduleReconnect(reason) {
+    if (reconnectTimer) return;
+    setStreamStatus('err', `reconnecting (${reason})`);
+    const waitMs = reconnectDelayMs;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connectEvents();
+    }, waitMs);
+    reconnectDelayMs = Math.min(reconnectDelayMs * 2, 15000);
+  }
+
+  function buildMermaid(state) {
+    const issues = [...state.issues].sort((a, b) => a.number - b.number);
+    const byPhase = new Map();
+    for (const p of phaseOrder) byPhase.set(p, []);
+    for (const i of issues) {
+      if (!byPhase.has(i.phase)) byPhase.set(i.phase, []);
+      byPhase.get(i.phase).push(i);
+    }
+
+    const lines = [];
+    lines.push('flowchart LR');
+    lines.push('  O([Orchestrator])');
+
+    for (const [phase, list] of byPhase.entries()) {
+      if (!list.length) continue;
+      const sid = phase.replace(/[^a-zA-Z0-9]/g, '_');
+      lines.push(`  subgraph ${sid}[${phaseTitle(phase)}]`);
+      for (const i of list) {
+        const id = `I${i.number}`;
+        const active = i.activeSession ? ' [RUN]' : '';
+        lines.push(`    ${id}["#${i.number} ${esc(i.title)}${active}"]`);
+      }
+      lines.push('  end');
+    }
+
+    const p1 = byPhase.get('phase:1-design') || [];
+    if (p1.length) {
+      for (const i of p1) lines.push(`  O --> I${i.number}`);
+    }
+
+    for (const i of issues) {
+      for (const dep of (i.deps || [])) {
+        lines.push(`  I${dep} --> I${i.number}`);
+      }
+    }
+
+    for (const i of issues) {
+      const id = `I${i.number}`;
+      lines.push(`  click ${id} "${i.url}" "Open issue #${i.number}" _blank`);
+      if (String(i.state).toUpperCase() === 'CLOSED') {
+        lines.push(`  class ${id} closed`);
+      } else {
+        lines.push(`  class ${id} open`);
+      }
+      if (i.activeSession) {
+        lines.push(`  class ${id} active`);
+      }
+    }
+
+    lines.push('  classDef open stroke:#f4d35e,stroke-width:2px,color:#f6f3dd;');
+    lines.push('  classDef closed stroke:#4ade80,stroke-width:2px,color:#dbffe7;');
+    lines.push('  classDef active stroke:#60a5fa,stroke-width:4px,font-weight:bold;');
+
+    return lines.join('\n');
+  }
+
+  function normalizeRoleProfiles(state) {
+    const list = Array.isArray(state.roleProfiles) && state.roleProfiles.length
+      ? state.roleProfiles
+      : fallbackRoleProfiles;
+
+    const byId = new Map();
+    for (const role of list) {
+      const id = String(role.id || '').trim();
+      if (!id) continue;
+      byId.set(id, {
+        id,
+        name: String(role.name || id.replace(/^role:/, '')).trim() || id.replace(/^role:/, ''),
+        description: String(role.description || '').trim(),
+        skills: Array.isArray(role.skills) ? role.skills.map((x) => String(x)).filter(Boolean) : ['general-engineering'],
+        tools: Array.isArray(role.tools) ? role.tools.map((x) => String(x)).filter(Boolean) : ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'],
+      });
+    }
+
+    if (!byId.has('role:unknown')) {
+      byId.set('role:unknown', fallbackRoleProfiles[0]);
+    }
+
+    return {
+      list: [...byId.values()],
+      byId,
+    };
+  }
+
+  function renderSide(state) {
+    const sessions = document.getElementById('sessions');
+    const skills = document.getElementById('skills');
+    const prs = document.getElementById('prs');
+    const autopilot = document.getElementById('autopilot');
+    const watchdog = document.getElementById('watchdog');
+    const { list: roleList, byId: roleById } = normalizeRoleProfiles(state);
+
+    sessions.innerHTML = '';
+    const live = state.sessions.filter(s => s.role !== 'orchestrator' && s.status !== 'killed');
+    const issueMap = new Map(state.issues.map(i => [Number(i.number), i]));
+    if (!live.length) {
+      sessions.innerHTML = '<li class="muted">No active worker sessions</li>';
+    } else {
+      for (const s of live) {
+        const issue = issueMap.get(Number(s.issue));
+        const role = issue?.role || 'role:unknown';
+        const roleProfile = roleById.get(role) || roleById.get('role:unknown') || fallbackRoleProfiles[0];
+        const skillsForRole = roleProfile.skills || ['general-engineering'];
+        const toolsForRole = roleProfile.tools || ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'];
+        const roleName = roleProfile.name || role.replace(/^role:/, '');
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${escapeHtml(s.name)}</strong> - issue #${s.issue ?? '-'} - <span class="pill">${escapeHtml(role)}</span> <span class="pill">${escapeHtml(roleName)}</span> - <span class="muted">${escapeHtml(s.branch || '-')}</span><br><span class="muted">skills: ${escapeHtml(skillsForRole.join(', '))}</span><br><span class="muted">tools: ${escapeHtml(toolsForRole.join(', '))}</span>`;
+        sessions.appendChild(li);
+      }
+    }
+
+    skills.innerHTML = '';
+    for (const roleProfile of roleList) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="pill">${escapeHtml(roleProfile.id)}</span> <span class="pill">${escapeHtml(roleProfile.name || roleProfile.id.replace(/^role:/, ''))}</span> <span class="muted">skills: ${escapeHtml((roleProfile.skills || []).join(', '))}</span><br><span class="muted">tools: ${escapeHtml((roleProfile.tools || []).join(', '))}</span>`;
+      skills.appendChild(li);
+    }
+
+    prs.innerHTML = '';
+    if (!state.openPrs.length) {
+      prs.innerHTML = '<li class="muted">No open PRs</li>';
+    } else {
+      for (const pr of state.openPrs) {
+        const li = document.createElement('li');
+        li.innerHTML = `<a href="${escapeHtml(pr.url)}" target="_blank">#${pr.number} ${escapeHtml(pr.title)}</a>`;
+        prs.appendChild(li);
+      }
+    }
+
+    const ap = state.autopilot;
+    if (!ap) {
+      autopilot.innerHTML = '<li class="muted">No autopilot telemetry file yet (.ao-tools/autopilot.state.json)</li>';
+    } else {
+      const counters = ap.counters || {};
+      const lastLoop = ap.lastLoop || {};
+      autopilot.innerHTML = `
+        <li><span class="pill">${escapeHtml(ap.status || 'unknown')}</span> run <span class="mono">${escapeHtml(ap.runId || '-')}</span></li>
+        <li>updated: <span class="mono">${escapeHtml(ap.updatedAt || '-')}</span></li>
+        <li>loop: <strong>${Number(lastLoop.loop || 0)}</strong> | open=${Number(lastLoop.openPhaseIssues || 0)} active=${Number(lastLoop.activeWorkers || 0)}</li>
+        <li>spawned=${Number(counters.spawnedTotal || 0)} healed=${Number(counters.healedTotal || 0)} merge-auto=${Number(counters.autoMergeEnabledTotal || 0)}</li>
+        <li>gate-blocks: preflight=${Number(counters.preflightBlockedTotal || 0)} approval=${Number(counters.approvalBlockedTotal || 0)} phase=${Number(counters.phaseBlockedTotal || 0)}</li>
+        <li>conflict nudges=${Number(counters.conflictNudgesTotal || 0)} spawn failures=${Number(counters.spawnFailuresTotal || 0)}</li>
+      `;
+    }
+
+    const wd = state.watchdog;
+    if (!wd || !wd.exists) {
+      watchdog.innerHTML = '<li class="muted">No watchdog log yet (.ao-tools/watchdog.log)</li>';
+    } else {
+      const recent = Array.isArray(wd.recent) ? wd.recent.slice(-3) : [];
+      const recentHtml = recent.map((line) => `<li class="mono">${escapeHtml(line)}</li>`).join('');
+      watchdog.innerHTML = `
+        <li>restart events (window): <strong>${Number(wd.restartCount || 0)}</strong></li>
+        <li>log: <span class="mono">${escapeHtml(wd.path || '-')}</span></li>
+        ${recentHtml || '<li class="muted">No recent lines</li>'}
+      `;
+    }
+  }
+
+  function renderEvents() {
+    const el = document.getElementById('events');
+    const rows = [...eventStore].slice(-120).reverse();
+    if (!rows.length) {
+      el.innerHTML = '<li class="muted">No events yet</li>';
+      return;
+    }
+
+    el.innerHTML = rows.map((evt) => {
+      const t = new Date(evt.at || Date.now()).toLocaleTimeString();
+      const type = escapeHtml(evt.type || 'event');
+      const eventType = evt.eventType ? `<span class="pill">${escapeHtml(evt.eventType)}</span>` : '';
+      const session = evt.session ? `<span class="pill">${escapeHtml(evt.session)}</span>` : '';
+      const issue = evt.issue ? `<span class="pill">issue #${escapeHtml(evt.issue)}</span>` : '';
+      const msg = escapeHtml(evt.message || JSON.stringify(evt));
+      return `
+        <li class="event">
+          <div class="event-meta">${t} <span class="pill">${type}</span>${eventType}${session}${issue}</div>
+          <div class="event-msg">${msg}</div>
+        </li>`;
+    }).join('');
+  }
+
+  function addEvent(evt) {
+    if (!evt || typeof evt !== 'object') return;
+    if (evt.id && evt.id <= lastEventId) return;
+    if (evt.id) lastEventId = Math.max(lastEventId, evt.id);
+    eventStore.push(evt);
+    if (eventStore.length > maxEvents) {
+      eventStore = eventStore.slice(eventStore.length - maxEvents);
+    }
+    renderEvents();
+  }
+
+  async function loadEventsBacklog() {
+    const res = await fetch(`/api/events?since=${lastEventId}`);
+    const data = await res.json();
+    for (const evt of data.events || []) addEvent(evt);
+  }
+
+  function connectEvents() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+    setStreamStatus('warn', 'connecting');
+    streamConnected = false;
+
+    eventSource = new EventSource(`/api/events/stream?since=${lastEventId}`);
+
+    eventSource.onopen = () => {
+      setStreamStatus('ok', 'connected');
+      streamConnected = true;
+      lastStreamActivityAt = Date.now();
+      reconnectDelayMs = 1000;
+    };
+
+    eventSource.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        addEvent(data);
+        lastStreamActivityAt = Date.now();
+      } catch (e) {
+        console.error('bad event payload', e);
+      }
+    };
+
+    eventSource.onerror = () => {
+      streamConnected = false;
+      try { eventSource.close(); } catch {}
+      eventSource = null;
+      scheduleReconnect('stream error');
+    };
+  }
+
+  async function render() {
+    const res = await fetch('/api/state?ts=' + Date.now());
+    const state = await res.json();
+
+    const roleSource = state.roleProfilesSource ? ` | roles=${state.roleProfilesSource}` : '';
+    document.getElementById('meta').textContent = `${state.repo} | project=${state.project}${roleSource} | updated ${new Date(state.generatedAt).toLocaleString()}`;
+    const open = state.issues.filter(i => i.state === 'OPEN').length;
+    const closed = state.issues.filter(i => i.state === 'CLOSED').length;
+    const running = state.sessions.filter(s => s.role !== 'orchestrator' && s.status !== 'killed').length;
+    const apStatus = state.autopilot?.status || 'n/a';
+    const apLoop = Number(state.autopilot?.lastLoop?.loop || 0);
+    document.getElementById('stats').textContent = `Open issues: ${open} | Closed: ${closed} | Active workers: ${running} | autopilot=${apStatus} loop=${apLoop}`;
+    const collector = state.collector || {};
+    const lagSeconds = Math.max(0, Math.round((Date.now() - new Date(state.generatedAt).getTime()) / 1000));
+    const errCount = Number(collector.totalErrors || 0);
+    const consecutive = Number(collector.consecutiveErrors || 0);
+    document.getElementById('collector').textContent = `collector: lag ${lagSeconds}s | errors ${errCount} | consecutive ${consecutive}`;
+
+    renderSide(state);
+
+    const graphCode = buildMermaid(state);
+    const el = document.getElementById('graph');
+    const { svg } = await mermaid.render('aoGraph', graphCode);
+    el.innerHTML = svg;
+  }
+
+  document.getElementById('refreshBtn').addEventListener('click', () => {
+    render().catch(console.error);
+    loadEventsBacklog().catch(console.error);
+  });
+
+  render().catch(console.error);
+  loadEventsBacklog().catch(console.error);
+  connectEvents();
+
+  setInterval(() => render().catch(console.error), 10000);
+  setInterval(() => loadEventsBacklog().catch(console.error), 15000);
+  setInterval(() => {
+    if (!streamConnected) return;
+    if (!lastStreamActivityAt) return;
+    const idleMs = Date.now() - lastStreamActivityAt;
+    if (idleMs > 30000) {
+      streamConnected = false;
+      if (eventSource) {
+        try { eventSource.close(); } catch {}
+        eventSource = null;
+      }
+      scheduleReconnect('idle timeout');
+    }
+  }, 5000);
+</script>
+</body>
+</html>

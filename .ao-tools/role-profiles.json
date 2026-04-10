@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "roles": [
+    {
+      "id": "role:design-agent",
+      "aliases": ["role:design"],
+      "name": "design-agent",
+      "description": "Turn prompt and business intent into executable specs and contracts.",
+      "skills": ["requirements-analysis", "prd-writing", "hld-framing", "api-contract", "acceptance-criteria"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep"],
+      "checklist": ["Deliver docs first", "Do not implement production code unless requested"]
+    },
+    {
+      "id": "role:build-execution-agent",
+      "name": "build-execution-agent",
+      "description": "Setup build systems, package scripts, and execution reliability.",
+      "skills": ["build-pipeline", "package-management", "runtime-bootstrap", "toolchain-debugging"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    },
+    {
+      "id": "role:backend-writer",
+      "aliases": ["role:backend"],
+      "name": "backend-writer",
+      "description": "Implement backend domain logic and API endpoints.",
+      "skills": ["domain-modeling", "api-implementation", "auth", "persistence", "error-handling"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    },
+    {
+      "id": "role:backend-test-writer",
+      "name": "backend-test-writer",
+      "description": "Write and maintain backend unit/integration tests.",
+      "skills": ["unit-testing", "integration-testing", "contract-validation", "test-fixtures", "coverage-analysis"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    },
+    {
+      "id": "role:frontend-writer",
+      "aliases": ["role:frontend"],
+      "name": "frontend-writer",
+      "description": "Implement frontend UI, routing, state and API integration.",
+      "skills": ["ui-architecture", "state-management", "api-integration", "accessibility", "responsive-layout"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    },
+    {
+      "id": "role:frontend-test-writer",
+      "name": "frontend-test-writer",
+      "description": "Write frontend unit/component tests and test harnesses.",
+      "skills": ["component-testing", "interaction-testing", "mocking-strategy", "regression-tests"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    },
+    {
+      "id": "role:e2e-test-writer",
+      "name": "e2e-test-writer",
+      "description": "Design and automate end-to-end journeys.",
+      "skills": ["playwright", "cross-flow-testing", "critical-path-coverage", "test-data-orchestration"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    },
+    {
+      "id": "role:visual-regression-test-writer",
+      "name": "visual-regression-test-writer",
+      "description": "Create visual baseline and regression checks for UI changes.",
+      "skills": ["visual-baselines", "snapshot-testing", "ui-diff-analysis"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    },
+    {
+      "id": "role:test-planner",
+      "aliases": ["role:test"],
+      "name": "test-planner",
+      "description": "Define test strategy, quality gates, and risk-based test scope.",
+      "skills": ["test-strategy", "risk-analysis", "ci-gates", "release-quality-policy"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep"]
+    },
+    {
+      "id": "role:test-execution-agent",
+      "name": "test-execution-agent",
+      "description": "Run validations and triage failures into actionable defects.",
+      "skills": ["suite-execution", "failure-triage", "flake-debugging", "artifact-analysis"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    },
+    {
+      "id": "role:diagnostic-agent",
+      "name": "diagnostic-agent",
+      "description": "Investigate incidents, root causes, and systemic reliability issues.",
+      "skills": ["debugging", "observability-analysis", "log-tracing", "root-cause-analysis"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    },
+    {
+      "id": "role:release-agent",
+      "aliases": ["role:release"],
+      "name": "release-agent",
+      "description": "Prepare deployment, handover and operational readiness.",
+      "skills": ["deployment-checklist", "operations-docs", "handover", "release-hardening"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    },
+    {
+      "id": "role:unknown",
+      "name": "unknown",
+      "description": "Fallback role when no explicit specialization is available.",
+      "skills": ["general-engineering"],
+      "tools": ["Read", "Write", "Edit", "Glob", "Grep", "Bash"]
+    }
+  ]
+}
