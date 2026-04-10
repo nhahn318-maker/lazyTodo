@@ -2,9 +2,11 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BACKEND_DIR="${REPO_ROOT}/backend"
+BACKEND_DIR="${REPO_ROOT}"
 FRONTEND_DIR="${REPO_ROOT}/frontend"
-BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://localhost:4000/health}"
+BACKEND_PORT="${BACKEND_PORT:-3100}"
+BACKEND_HOST="${BACKEND_HOST:-127.0.0.1}"
+BACKEND_HEALTH_URL="${BACKEND_HEALTH_URL:-http://${BACKEND_HOST}:${BACKEND_PORT}/health}"
 BACKEND_STARTUP_TIMEOUT="${BACKEND_STARTUP_TIMEOUT:-40}"
 BACKEND_LOG="${REPO_ROOT}/.ao-tools/backend-quality-smoke.log"
 
@@ -87,16 +89,26 @@ install_deps() {
     return 0
   fi
 
-  if (cd "$dir" && npm ci); then
+  if (
+    cd "$dir"
+    node -e 'const fs=require("fs");const p=JSON.parse(fs.readFileSync("package.json","utf8"));const hasDeps=Boolean((p.dependencies&&Object.keys(p.dependencies).length)||(p.devDependencies&&Object.keys(p.devDependencies).length));process.exit(hasDeps?1:0);'
+  ); then
+    log "No dependencies declared in ${dir}. Skipping install."
     return 0
   fi
 
-  log "npm ci failed in ${dir}. Retrying with --force"
-  if (cd "$dir" && npm ci --force); then
+  if [[ -f "${dir}/package-lock.json" ]] && (cd "$dir" && npm ci); then
     return 0
   fi
 
-  log "npm ci --force failed in ${dir}. Falling back to npm install"
+  if [[ -f "${dir}/package-lock.json" ]]; then
+    log "npm ci failed in ${dir}. Retrying with --force"
+    if (cd "$dir" && npm ci --force); then
+      return 0
+    fi
+  fi
+
+  log "Falling back to npm install in ${dir}"
   (cd "$dir" && npm install)
 }
 
@@ -151,7 +163,7 @@ if has_project "$BACKEND_DIR"; then
   if npm_has_script "$BACKEND_DIR" "start"; then
     log "Runtime smoke: start backend and verify health"
     cd "$BACKEND_DIR"
-    npm run start >"$BACKEND_LOG" 2>&1 &
+    HOST="$BACKEND_HOST" PORT="$BACKEND_PORT" npm run start >"$BACKEND_LOG" 2>&1 &
     BACKEND_PID="$!"
     cd "$REPO_ROOT"
 

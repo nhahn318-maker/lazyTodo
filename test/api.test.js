@@ -51,6 +51,19 @@ test('GET /api/v1/session returns unauthenticated without a cookie', async () =>
   });
 });
 
+test('GET /health returns ok', async () => {
+  const app = createTestServer();
+  await withServer(app, async ({ request }) => {
+    const response = await request('/health');
+    const payload = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(payload, {
+      status: 'ok',
+    });
+  });
+});
+
 test('authenticated task flow matches the contract', async () => {
   const seedTasks = [
     {

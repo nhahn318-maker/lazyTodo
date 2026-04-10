@@ -54,7 +54,6 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
-            backend/package-lock.json
             frontend/package-lock.json
       - name: Run local quality gate script
         run: |
@@ -75,14 +74,17 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
-            backend/package-lock.json
             frontend/package-lock.json
       - name: Install backend deps (if exists)
         run: |
-          if [ -f backend/package.json ]; then
-            cd backend
-            npm ci
-            cd ..
+          if [ -f package.json ]; then
+            if [ -f package-lock.json ]; then
+              npm ci
+            else
+              echo "No root package-lock.json, skipping backend install."
+            fi
+          else
+            echo "No root package.json, skipping backend install."
           fi
       - name: Install frontend deps
         run: |
