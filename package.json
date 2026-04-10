@@ -1,0 +1,13 @@
+{
+  "name": "lazytodo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backend service for lazyTodo",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
