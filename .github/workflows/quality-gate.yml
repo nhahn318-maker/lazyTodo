@@ -46,31 +46,35 @@ jobs:
 
   quality-core:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('.ao-tools/quality-gate.sh') != '' }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
           cache: npm
           cache-dependency-path: |
+            package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
       - name: Run local quality gate script
         run: |
-          chmod +x ./.ao-tools/quality-gate.sh
-          ./.ao-tools/quality-gate.sh
+          if [ -f ./.ao-tools/quality-gate.sh ]; then
+            chmod +x ./.ao-tools/quality-gate.sh
+            ./.ao-tools/quality-gate.sh
+          else
+            echo "No .ao-tools/quality-gate.sh found. Skipping quality-core checks."
+          fi
 
   e2e:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('frontend/package.json') != '' && hashFiles('frontend/playwright.config.*') != '' }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
           cache: npm
           cache-dependency-path: |
+            package-lock.json
             backend/package-lock.json
             frontend/package-lock.json
       - name: Install backend deps (if exists)
@@ -82,10 +86,24 @@ jobs:
           fi
       - name: Install frontend deps
         run: |
-          cd frontend
-          npm ci
+          if [ -f frontend/package.json ]; then
+            cd frontend
+            npm ci
+          else
+            echo "No frontend/package.json, skipping frontend install."
+          fi
       - name: Run e2e if script exists
         run: |
+          if [ ! -f frontend/package.json ]; then
+            echo "No frontend/package.json, skipping e2e."
+            exit 0
+          fi
+
+          if ! ls frontend/playwright.config.* >/dev/null 2>&1; then
+            echo "No Playwright config, skipping e2e."
+            exit 0
+          fi
+
           cd frontend
           HAS_E2E=$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.stdout.write(p.scripts&&p.scripts['e2e:ci']?'yes':'no')")
           if [ "$HAS_E2E" = "yes" ]; then
